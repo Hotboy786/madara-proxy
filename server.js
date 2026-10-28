@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const qs = require('qs'); // Built into Node.js environment or standard npm package
 
 const app = express();
 
@@ -14,20 +15,20 @@ app.get('/', (req, res) => {
 
 app.post('/proxy', async (req, res) => {
   try {
-    // Extract target URL from baseUrl or root fields
+    // 1. Extract target URL
     const targetUrl = req.body.baseUrl || req.body.url || req.body.apiUrl || req.body.api_url;
     
-    // Extract key and action from either top-level or nested 'params' object
+    // 2. Extract API Key and Action from top-level or nested params
     const apiKey = req.body.apiKey || req.body.key || req.body.api_key || req.body.params?.key || req.body.params?.apiKey;
-    const action = req.body.action || req.body.params?.action || 'services';
+    const action = req.body.action || req.body.params?.action || 'balance';
     
-    // Combine any extra data from root and nested params
+    // 3. Extract extra parameters
     const extraData = {
       ...(req.body.params || {}),
       ...(req.body.data || {})
     };
 
-    // Clean internal properties out of outgoing data
+    // Clean internal routing properties
     delete extraData.key;
     delete extraData.apiKey;
     delete extraData.api_key;
@@ -43,20 +44,21 @@ app.post('/proxy', async (req, res) => {
       return res.status(400).json({ error: 'API Key is required' });
     }
 
-    // Build standard SMM payload expected by provider
+    // 4. Build standard SMM payload
     const payload = {
       key: apiKey,
       action: action,
       ...extraData
     };
 
+    // 5. Send as application/x-www-form-urlencoded using qs.stringify
     const response = await axios({
       method: 'POST',
       url: targetUrl,
-      data: payload,
+      data: qs.stringify(payload),
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
       },
       timeout: 15000
     });
