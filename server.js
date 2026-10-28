@@ -73,6 +73,29 @@ app.post('/proxy', async (req, res) => {
     });
   }
 });
+app.post('/schedule-order', async (req, res) => {
+  try {
+    const targetUrl = req.body.baseUrl || req.body.url;
+    const apiKey = req.body.apiKey || req.body.key || req.body.params?.key;
+    
+    const response = await axios({
+      method: 'POST',
+      url: targetUrl,
+      data: qs.stringify({
+        key: apiKey,
+        action: 'add',
+        ...(req.body.params || req.body)
+      }),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    return res.json(response.data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
