@@ -13,7 +13,7 @@ let activityLogsDatabase = [];
 // Base Proxy Route for API Requests (Matches KM Panel & Supabase requirements)
 app.post('/proxy', async (req, res) => {
   try {
-    const targetUrl = req.body.url || req.body.apiUrl || req.body.api_url;
+    const targetUrl = req.body.url || req.body.apiUrl || req.body.api_url || req.body.baseUrl;
     const apiKey = req.body.key || req.body.apiKey || req.body.api_key;
     const action = req.body.action || 'services';
     const extraData = req.body.data || {};
