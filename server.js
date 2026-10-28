@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const qs = require('qs'); // Built into Node.js environment or standard npm package
+const qs = require('qs');
 
 const app = express();
 
@@ -13,22 +13,21 @@ app.get('/', (req, res) => {
   res.send('Madara Proxy Server is Running');
 });
 
-app.post('/proxy', async (req, res) => {
+// 🌍 Universal Handler for ANY API or Order route your frontend calls
+async function handleProxyRequest(req, res) {
   try {
-    // 1. Extract target URL
     const targetUrl = req.body.baseUrl || req.body.url || req.body.apiUrl || req.body.api_url;
+    const apiKey = req.body.apiKey || req.body.key || req.body.api_key || req.body.params?.key;
     
-    // 2. Extract API Key and Action from top-level or nested params
-    const apiKey = req.body.apiKey || req.body.key || req.body.api_key || req.body.params?.key || req.body.params?.apiKey;
-    const action = req.body.action || req.body.params?.action || 'balance';
-    
-    // 3. Extract extra parameters
+    // Determine action based on route or payload
+    let action = req.body.action || req.body.params?.action;
+    if (!action && req.path.includes('schedule')) action = 'add';
+
     const extraData = {
       ...(req.body.params || {}),
       ...(req.body.data || {})
     };
 
-    // Clean internal routing properties
     delete extraData.key;
     delete extraData.apiKey;
     delete extraData.api_key;
@@ -44,14 +43,12 @@ app.post('/proxy', async (req, res) => {
       return res.status(400).json({ error: 'API Key is required' });
     }
 
-    // 4. Build standard SMM payload
     const payload = {
       key: apiKey,
-      action: action,
+      ...(action ? { action } : {}),
       ...extraData
     };
 
-    // 5. Send as application/x-www-form-urlencoded using qs.stringify
     const response = await axios({
       method: 'POST',
       url: targetUrl,
@@ -72,30 +69,13 @@ app.post('/proxy', async (req, res) => {
       details: error.response?.data || null
     });
   }
-});
-app.post('/schedule-order', async (req, res) => {
-  try {
-    const targetUrl = req.body.baseUrl || req.body.url;
-    const apiKey = req.body.apiKey || req.body.key || req.body.params?.key;
-    
-    const response = await axios({
-      method: 'POST',
-      url: targetUrl,
-      data: qs.stringify({
-        key: apiKey,
-        action: 'add',
-        ...(req.body.params || req.body)
-      }),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
+}
 
-    return res.json(response.data);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-});
+// Map all common routes to the universal handler
+app.post('/proxy', handleProxyRequest);
+app.post('/schedule-order', handleProxyRequest);
+app.post('/orders', handleProxyRequest);
+app.post('/api', handleProxyRequest);
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
