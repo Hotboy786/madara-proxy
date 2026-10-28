@@ -6,11 +6,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// In-memory data arrays for Schedules tab
+// In-memory data arrays for Schedules & Logs
 let ordersDatabase = [];
 let activityLogsDatabase = [];
 
-// Base Proxy Route for API Requests (Fully compatible with Supabase & standard SMM panels)
+// Base Proxy Route for API Requests (Matches KM Panel & Supabase requirements)
 app.post('/proxy', async (req, res) => {
   try {
     const targetUrl = req.body.url || req.body.apiUrl || req.body.api_url;
@@ -22,7 +22,7 @@ app.post('/proxy', async (req, res) => {
       return res.status(400).json({ error: 'Target URL is required' });
     }
 
-    // Forward request cleanly as JSON payload (required by Supabase endpoints like OrganicSMM)
+    // Forward request as JSON payload to Supabase Edge Functions or SMM endpoints
     const response = await axios({
       method: 'POST',
       url: targetUrl,
@@ -70,7 +70,7 @@ app.post('/orders/:id/pause', (req, res) => {
 });
 
 app.post('/orders/:id/resume', (req, res) => {
-  const { id] = req.params;
+  const { id } = req.params;
   const order = ordersDatabase.find((o) => o.id === id);
   if (order) order.status = 'active';
   res.json({ success: true, order });
