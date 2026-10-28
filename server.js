@@ -13,16 +13,30 @@ let activityLogsDatabase = [];
 // Dynamic Proxy Route (Handles standard SMM panels + Supabase JSON endpoints)
 app.post('/proxy', async (req, res) => {
   try {
-    // Support both 'url' / 'apiUrl' and 'key' / 'apiKey' property names from frontend
-    const targetUrl = req.body.url || req.body.apiUrl;
-    const key = req.body.key || req.body.apiKey;
-    const action = req.body.action || 'services';
+    // 1. Extract target URL across all common frontend naming conventions
+    const targetUrl = 
+      req.body.url || 
+      req.body.apiUrl || 
+      req.body.api_url || 
+      req.body.endpoint || 
+      (req.body.data && (req.body.data.url || req.body.data.apiUrl));
+
+    // 2. Extract API Key
+    const key = 
+      req.body.key || 
+      req.body.apiKey || 
+      req.body.api_key || 
+      (req.body.data && (req.body.data.key || req.body.data.apiKey));
+
+    // 3. Extract Action (defaults to services)
+    const action = req.body.action || (req.body.data && req.body.data.action) || 'services';
 
     if (!targetUrl) {
+      console.error('Incoming Request Body:', JSON.stringify(req.body));
       return res.status(400).json({ error: 'Target URL is required' });
     }
 
-    // 1. Handling Supabase Edge Functions (e.g., OrganicSMM)
+    // A. Handle Supabase Functions (e.g., OrganicSMM)
     if (targetUrl.includes('/functions/v1/')) {
       const payload = {
         key: key,
@@ -39,14 +53,16 @@ app.post('/proxy', async (req, res) => {
       return res.json(response.data);
     }
 
-    // 2. Handling Standard SMM Panels (x-www-form-urlencoded format)
+    // B. Handle Standard SMM Panels (x-www-form-urlencoded)
     const params = new URLSearchParams();
     if (key) params.append('key', key);
     params.append('action', action);
 
-    if (req.body.data) {
+    if (req.body.data && typeof req.body.data === 'object') {
       Object.keys(req.body.data).forEach((k) => {
-        params.append(k, req.body.data[k]);
+        if (k !== 'key' && k !== 'action' && k !== 'url') {
+          params.append(k, req.body.data[k]);
+        }
       });
     }
 
@@ -55,6 +71,16 @@ app.post('/proxy', async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
+
+    res.json(response.data);
+  } catch (error) {
+    console.error('Proxy Error Details:', error.response?.data || error.message);
+    res.status(500).json({
+      error: error.message,
+      details: error.response?.data || null
+    });
+  }
+});
 
     res.json(response.data);
   } catch (error) {
