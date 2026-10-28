@@ -71,13 +71,14 @@ async function handleProxyRequest(req, res) {
 }
 
 // Route Mappings
-app.post('/proxy', handleProxyRequest);
-app.post('/schedule-order', handleProxyRequest);
-app.post('/orders', handleProxyRequest);
-app.post('/status', handleProxyRequest);
-app.post('/list', handleProxyRequest);
-app.post('/api', handleProxyRequest);
-app.post('*', handleProxyRequest); // Catch-all for any tab/route
+// Handle both POST and GET for all possible frontend endpoints
+app.all('/proxy', handleProxyRequest);
+app.all('/schedule-order', handleProxyRequest);
+app.all('/orders', handleProxyRequest);
+app.all('/status', handleProxyRequest);
+app.all('/list', handleProxyRequest);
+app.all('/api', handleProxyRequest);
+app.all('*', handleProxyRequest); // Ultimate catch-all
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
