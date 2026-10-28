@@ -72,12 +72,13 @@ async function handleProxyRequest(req, res) {
 }
 
 // Map all common routes to the universal handler
+// Map all common frontend tab/action routes to the universal handler
 app.post('/proxy', handleProxyRequest);
 app.post('/schedule-order', handleProxyRequest);
 app.post('/orders', handleProxyRequest);
+app.post('/status', handleProxyRequest);
+app.post('/list', handleProxyRequest);
 app.post('/api', handleProxyRequest);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Madara Proxy running on port ${PORT}`);
-});
+// Catch-all fallback so any other path won't return HTML 404 errors
+app.post('*', handleProxyRequest);
