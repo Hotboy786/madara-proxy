@@ -13,8 +13,9 @@ let activityLogsDatabase = [];
 // Dynamic Proxy Route (Handles standard SMM panels + Supabase JSON endpoints)
 app.post('/proxy', async (req, res) => {
   try {
-    const targetUrl = req.body.url;
-    const key = req.body.key;
+    // Support both 'url' / 'apiUrl' and 'key' / 'apiKey' property names from frontend
+    const targetUrl = req.body.url || req.body.apiUrl;
+    const key = req.body.key || req.body.apiKey;
     const action = req.body.action || 'services';
 
     if (!targetUrl) {
@@ -23,16 +24,18 @@ app.post('/proxy', async (req, res) => {
 
     // 1. Handling Supabase Edge Functions (e.g., OrganicSMM)
     if (targetUrl.includes('/functions/v1/')) {
-      const response = await axios.post(
-        targetUrl,
-        { key, action, ...(req.body.data || {}) },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
+      const payload = {
+        key: key,
+        action: action,
+        ...(req.body.data || {})
+      };
+
+      const response = await axios.post(targetUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
-      );
+      });
       return res.json(response.data);
     }
 
