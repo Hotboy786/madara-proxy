@@ -6,26 +6,64 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// In-memory data arrays for Schedules tab
+// In-memory storage for Schedules tab
 let ordersDatabase = [];
 let activityLogsDatabase = [];
 
-// Base Proxy Route for API Requests
+// Dynamic Proxy Route (Handles standard SMM panels + Supabase JSON endpoints)
 app.post('/proxy', async (req, res) => {
   try {
-    const response = await axios({
-      method: req.body.method || 'POST',
-      url: req.body.url,
-      data: req.body.data,
-      headers: req.body.headers
+    const targetUrl = req.body.url;
+    const key = req.body.key;
+    const action = req.body.action || 'services';
+
+    if (!targetUrl) {
+      return res.status(400).json({ error: 'Target URL is required' });
+    }
+
+    // 1. Handling Supabase Edge Functions (e.g., OrganicSMM)
+    if (targetUrl.includes('/functions/v1/')) {
+      const response = await axios.post(
+        targetUrl,
+        { key, action, ...(req.body.data || {}) },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        }
+      );
+      return res.json(response.data);
+    }
+
+    // 2. Handling Standard SMM Panels (x-www-form-urlencoded format)
+    const params = new URLSearchParams();
+    if (key) params.append('key', key);
+    params.append('action', action);
+
+    if (req.body.data) {
+      Object.keys(req.body.data).forEach((k) => {
+        params.append(k, req.body.data[k]);
+      });
+    }
+
+    const response = await axios.post(targetUrl, params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     });
+
     res.json(response.data);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Proxy Error:', error.response?.data || error.message);
+    res.status(500).json({
+      error: error.message,
+      details: error.response?.data || null
+    });
   }
 });
 
-// Schedules Tab Endpoints
+// Schedules & Logs Tab Endpoints
 app.get('/orders', (req, res) => {
   res.json(ordersDatabase);
 });
