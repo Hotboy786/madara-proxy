@@ -6,31 +6,30 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// In-memory storage for Schedules tab
+// In-memory data arrays for Schedules tab
 let ordersDatabase = [];
 let activityLogsDatabase = [];
 
-// Dynamic Proxy Route (Handles standard SMM panels + Supabase JSON endpoints)
+// Base Proxy Route for API Requests (Fully compatible with Supabase & standard SMM panels)
 app.post('/proxy', async (req, res) => {
   try {
-    const { url, key, action, ...extraData } = req.body;
-
-    const targetUrl = url || req.body.apiUrl || req.body.api_url;
-    const apiKey = key || req.body.apiKey || req.body.api_key;
+    const targetUrl = req.body.url || req.body.apiUrl || req.body.api_url;
+    const apiKey = req.body.key || req.body.apiKey || req.body.api_key;
+    const action = req.body.action || 'services';
+    const extraData = req.body.data || {};
 
     if (!targetUrl) {
       return res.status(400).json({ error: 'Target URL is required' });
     }
 
-    // Direct JSON proxy request matching KM Panel backend handling
+    // Forward request cleanly as JSON payload (required by Supabase endpoints like OrganicSMM)
     const response = await axios({
       method: 'POST',
       url: targetUrl,
       data: {
         key: apiKey,
-        action: action || 'services',
-        ...extraData,
-        ...(req.body.data || {})
+        action: action,
+        ...extraData
       },
       headers: {
         'Content-Type': 'application/json',
@@ -38,16 +37,17 @@ app.post('/proxy', async (req, res) => {
       }
     });
 
-    return res.json(response.data);
+    res.json(response.data);
   } catch (error) {
-    console.error('Proxy Exception:', error.response?.data || error.message);
-    return res.status(500).json({
+    console.error('Proxy Error:', error.response?.data || error.message);
+    res.status(500).json({
       error: error.message,
       details: error.response?.data || null
     });
   }
 });
-// Schedules & Logs Tab Endpoints
+
+// Schedules Tab Endpoints
 app.get('/orders', (req, res) => {
   res.json(ordersDatabase);
 });
@@ -70,7 +70,7 @@ app.post('/orders/:id/pause', (req, res) => {
 });
 
 app.post('/orders/:id/resume', (req, res) => {
-  const { id } = req.params;
+  const { id] = req.params;
   const order = ordersDatabase.find((o) => o.id === id);
   if (order) order.status = 'active';
   res.json({ success: true, order });
